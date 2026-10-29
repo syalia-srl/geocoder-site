@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Geocoder · direcciones cubanas en el mapa, sin internet</title>
+<meta name="description" content="Geocoder convierte direcciones cubanas como «Calle 23 e/ L y M» en un punto en el mapa con su margen de error, sin internet, sobre datos de OpenStreetMap.">
+<meta property="og:title" content="Geocoder · direcciones cubanas en el mapa, sin internet">
+<meta property="og:description" content="Offline geocoding for Cuba on OpenStreetMap data. Built by Syalia.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+:root{
+  --ink:#0B1420;--panel:#0F1D2E;--panel-2:#12233A;--line:#1C3350;--text:#E8EDF2;--muted:#7C93A8;--amber:#F2A65A;--amber-dim:#B9793B;
+  --radius:14px;--shadow:0 24px 60px -20px rgba(0,0,0,.65);
+  --font-display:"Archivo",sans-serif;--font-body:"Inter",system-ui,sans-serif;--font-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--ink);color:var(--text);font-family:var(--font-body);-webkit-font-smoothing:antialiased;line-height:1.55}
+a{color:var(--amber);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--font-mono);font-size:.9em;color:var(--text)}
+
+header.top{position:fixed;z-index:10;top:0;left:0;right:0;display:flex;align-items:center;gap:14px;padding:14px 22px;background:linear-gradient(#0B1420f0,#0B142000)}
+.brand{font-family:var(--font-display);font-weight:800;letter-spacing:.14em;font-size:14px;text-transform:uppercase;color:var(--text)}
+.brand b{color:var(--amber);font-weight:800}
+header.top nav{margin-left:auto;display:flex;gap:18px;align-items:center;font-size:13px}
+header.top nav a{color:var(--muted)}
+header.top nav a:hover{color:var(--text);text-decoration:none}
+.lang{font:12px var(--font-mono);background:#0F1D2Ecc;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:4px 11px;cursor:pointer}
+
+.hero{position:relative;height:100vh;min-height:620px;max-height:980px;overflow:hidden}
+.hero svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.panel{position:absolute;z-index:2;left:28px;top:84px;width:380px;background:#0F1D2Ef2;border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.panel h1{font-family:var(--font-display);font-weight:800;font-size:34px;line-height:1.02;margin:0;letter-spacing:-.01em}
+.panel .sub{font-size:14px;color:var(--muted);margin:10px 0 14px}
+.modes{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}
+.modes button,.chips button{cursor:pointer}
+.modes button{font:12px var(--font-mono);background:var(--ink);border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:5px 11px}
+.modes button.on{color:var(--ink);background:var(--amber);border-color:var(--amber)}
+.q{display:flex;align-items:center;gap:8px;background:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:14px var(--font-mono);min-height:44px}
+.q .caret{width:7px;height:17px;background:var(--amber);animation:blink 1s steps(2) infinite;flex:none}
+@keyframes blink{50%{opacity:0}}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.chips button{font:12.5px var(--font-body);background:none;border:1px solid var(--line);color:var(--text);border-radius:999px;padding:5px 11px;text-align:left}
+.chips button.on{border-color:var(--amber);color:var(--amber)}
+.res{margin-top:14px;border-top:1px solid var(--line);padding-top:11px;font:12.5px var(--font-mono);color:var(--muted);display:grid;grid-template-columns:auto 1fr;gap:3px 14px}
+.res b{color:var(--text);font-weight:400}
+.res .big{grid-column:1/-1;color:var(--amber);font-size:14px;margin-bottom:2px}
+.explore{display:inline-flex;margin-top:14px;font:600 13px var(--font-body);color:var(--ink);background:var(--amber);border-radius:999px;padding:8px 16px}
+.explore:hover{text-decoration:none;background:#f5b877}
+.note{position:absolute;z-index:2;right:16px;bottom:14px;font:11px var(--font-mono);color:var(--muted);background:#0B1420d0;border-radius:6px;padding:4px 8px;max-width:60vw}
+.osm{position:absolute;z-index:2;left:16px;bottom:14px;font:11px var(--font-mono);color:var(--muted)}
+.osm a{color:var(--muted);text-decoration:underline}
+.pulse{animation:pulse 1.6s ease-out infinite}
+@keyframes pulse{0%{opacity:.95}100%{opacity:.3}}
+
+main{max-width:1120px;margin:0 auto;padding:40px 24px 60px}
+section.s{padding:64px 0;border-top:1px solid var(--line)}
+section.s:first-child{border-top:0}
+.k{display:block;font:12px var(--font-mono);letter-spacing:.16em;text-transform:uppercase;color:var(--amber);margin-bottom:12px}
+h2{font-family:var(--font-display);font-weight:800;font-size:clamp(28px,4vw,44px);line-height:1.05;margin:0 0 16px;letter-spacing:-.01em;max-width:22ch}
+p.lead{font-size:18px;color:var(--muted);max-width:62ch;margin:0}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:28px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:28px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px}
+.card h3{font-family:var(--font-display);font-weight:700;font-size:18px;margin:0 0 6px}
+.card p{margin:0;color:var(--muted);font-size:14.5px}
+.card .ex{display:block;font:13px var(--font-mono);color:var(--amber);margin-bottom:10px}
+pre{font:12.5px/1.6 var(--font-mono);background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;overflow:auto;color:var(--text);margin:0}
+pre .c{color:var(--muted)} pre .s{color:#9fd3a8} pre .n{color:var(--amber)}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+.btn{font:600 14px var(--font-body);border-radius:999px;padding:11px 20px;border:1px solid var(--line);color:var(--text)}
+.btn.p{background:var(--amber);border-color:var(--amber);color:var(--ink)}
+.btn:hover{text-decoration:none;border-color:var(--muted)}
+footer{border-top:1px solid var(--line);padding:26px 24px 40px;max-width:1120px;margin:0 auto;display:flex;flex-wrap:wrap;gap:12px 24px;font-size:13px;color:var(--muted)}
+footer a{color:var(--muted);text-decoration:underline}
+
+@media (max-width:760px){
+  .grid3,.grid2{grid-template-columns:1fr}
+  header.top nav a.hide-s{display:none}
+}
+@media (max-width:640px){
+  header.top{position:relative;background:var(--ink);padding:12px 16px}
+  .hero{height:auto;min-height:0;max-height:none;overflow:visible}
+  .hero .stage{position:relative;aspect-ratio:1000/900}
+  .panel{position:relative;left:auto;top:auto;width:auto;border-radius:0;border-left:0;border-right:0;box-shadow:none;padding:18px 16px}
+  .panel h1{font-size:28px}
+  .note{max-width:52vw;font-size:10px;right:8px;bottom:8px}
+  .osm{bottom:8px;left:8px;font-size:10px}
+  main{padding:20px 16px 40px}
+  section.s{padding:44px 0}
+}
+@media (min-width:641px){.hero .stage{position:absolute;inset:0}}
+@media (pointer:coarse){.modes button,.chips button,.lang{min-height:40px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <span class="brand">Geo<b>coder</b></span>
+  <nav>
+    <a class="hide-s" href="#como" data-es="Cómo funciona" data-en="How it works">Cómo funciona</a>
+    <a class="hide-s" href="#offline" data-es="Sin internet" data-en="Offline">Sin internet</a>
+    <a href="#demo" data-es="Pide una demo" data-en="Ask for a demo">Pide una demo</a>
+    <button class="lang" id="lang" type="button">EN</button>
+  </nav>
+</header>
+
+<div class="hero">
+  <div class="stage">
+    <svg id="map" viewBox="0 0 __VW__ __VH__" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Mapa de Vedado, La Habana">
+      <rect x="-2000" y="-2000" width="5000" height="5000" fill="#0B1420"/>
+      <rect width="__VW__" height="__VH__" fill="#112237"/>
+      <path d="__SEA__" fill="#0B1420" stroke="#2a4566" stroke-width="1"/>
+      __LAYERS__
+      <g id="labels" font-family="IBM Plex Mono, monospace" font-size="9" fill="#7C93A8" letter-spacing=".04em">__LABELS__</g>
+      <g id="lote" hidden>__LOTE__</g>
+      <path id="route" d="__ROUTE__" stroke="#E8EDF2" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" hidden/>
+      <path id="seg" d="" stroke="#F2A65A" stroke-width="6" fill="none" stroke-linecap="round"/>
+      <circle id="halo" class="pulse" r="0" fill="rgba(242,166,90,.18)" stroke="#F2A65A" stroke-width="1.5"/>
+      <circle id="dot" r="5" fill="#F2A65A" stroke="#0B1420" stroke-width="2"/>
+    </svg>
+    <div class="osm">© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></div>
+    <div class="note" data-es="Ejemplo ilustrativo calculado con la geometría de OpenStreetMap" data-en="Illustrative example computed from OpenStreetMap geometry">Ejemplo ilustrativo calculado con la geometría de OpenStreetMap</div>
+  </div>
+  <div class="panel">
+    <h1 data-es="Escribe la dirección." data-en="Type the address.">Escribe la dirección.</h1>
+    <p class="sub" data-es="Como la escribes en Cuba. Geocoder la pone en el mapa, con su margen de error, sin internet." data-en="The way it is written in Cuba. Geocoder puts it on the map, with its margin of error, offline.">Como la escribes en Cuba. Geocoder la pone en el mapa, con su margen de error, sin internet.</p>
+    <div class="modes" id="modes">
+      <button type="button" class="on" data-m="punto" data-es="Punto" data-en="Point">Punto</button>
+      <button type="button" data-m="ruta" data-es="Ruta" data-en="Route">Ruta</button>
+      <button type="button" data-m="lote" data-es="Lote" data-en="Batch">Lote</button>
+    </div>
+    <div class="q" aria-live="polite"><span id="qtext"></span><span class="caret"></span></div>
+    <div class="chips" id="chips"></div>
+    <div class="res" id="res"></div>
+    <a class="explore" href="#demo" data-es="Pruébalo con tus direcciones →" data-en="Try it with your addresses →">Pruébalo con tus direcciones →</a>
+  </div>
+</div>
+
+<main>
+  <section class="s" id="como">
+    <span class="k" data-es="Cómo lee una dirección" data-en="How it reads an address">Cómo lee una dirección</span>
+    <h2 data-es="Una esquina es un punto. Una cuadra es un círculo." data-en="A corner is a point. A block is a circle.">Una esquina es un punto. Una cuadra es un círculo.</h2>
+    <p class="lead" data-es="«Entre L y M» no es un punto: es una cuadra, y el círculo lo dice, porque el radio es la mitad del tramo. Un hotel o un parque salen de OpenStreetMap. Cada respuesta trae municipio, barrio y la precisión con que se encontró." data-en="“Between L and M” is not a point: it is a block, and the circle says so, because the radius is half the block. A hotel or a park comes from OpenStreetMap. Every answer carries its municipality, neighbourhood and how precisely it was found.">«Entre L y M» no es un punto: es una cuadra, y el círculo lo dice, porque el radio es la mitad del tramo. Un hotel o un parque salen de OpenStreetMap. Cada respuesta trae municipio, barrio y la precisión con que se encontró.</p>
+    <div class="grid3">
+      <div class="card"><span class="ex">23 esq. a L</span><h3 data-es="Esquina" data-en="Corner">Esquina</h3><p data-es="El cruce de dos calles: un punto, con un margen de pocos metros." data-en="Where two streets cross: a point, with a margin of a few metres.">El cruce de dos calles: un punto, con un margen de pocos metros.</p></div>
+      <div class="card"><span class="ex">L e/ 23 y 25</span><h3 data-es="Tramo" data-en="Block">Tramo</h3><p data-es="Una calle entre otras dos: el punto medio del tramo, con la mitad de su largo como radio." data-en="A street between two others: the middle of the block, with half its length as the radius.">Una calle entre otras dos: el punto medio del tramo, con la mitad de su largo como radio.</p></div>
+      <div class="card"><span class="ex">Hotel Nacional</span><h3 data-es="Lugar" data-en="Place">Lugar</h3><p data-es="Hoteles, plazas, hospitales y escuelas con nombre en OpenStreetMap." data-en="Hotels, squares, hospitals and schools named in OpenStreetMap.">Hoteles, plazas, hospitales y escuelas con nombre en OpenStreetMap.</p></div>
+    </div>
+  </section>
+
+  <section class="s" id="modos">
+    <span class="k" data-es="Más que un punto" data-en="More than a point">Más que un punto</span>
+    <h2 data-es="De aquí a allá, y en qué orden." data-en="From here to there, and in what order.">De aquí a allá, y en qué orden.</h2>
+    <div class="grid2">
+      <div class="card"><h3 data-es="Ruta y viaje" data-en="Route and trip">Ruta y viaje</h3><p data-es="La ruta por calles entre dos direcciones, y el orden en que conviene visitar varias paradas, con vuelta al inicio si hace falta." data-en="The street route between two addresses, and the order in which to visit several stops, back to the start if needed.">La ruta por calles entre dos direcciones, y el orden en que conviene visitar varias paradas, con vuelta al inicio si hace falta.</p></div>
+      <div class="card"><h3 data-es="¿Hasta dónde llego?" data-en="How far can I get?">¿Hasta dónde llego?</h3><p data-es="Desde una dirección, lo que alcanzas en 5, 10 y 15 minutos." data-en="From an address, what you reach in 5, 10 and 15 minutes.">Desde una dirección, lo que alcanzas en 5, 10 y 15 minutos.</p></div>
+      <div class="card"><h3 data-es="Lote" data-en="Batch">Lote</h3><p data-es="Sube una hoja de cálculo con direcciones (.xlsx o .csv) y bájala con coordenadas. Mírala en puntos, grupos, mapa de calor, zonas o cobertura." data-en="Upload a spreadsheet of addresses (.xlsx or .csv) and download it with coordinates. View it as points, clusters, heat map, zones or coverage.">Sube una hoja de cálculo con direcciones (.xlsx o .csv) y bájala con coordenadas. Mírala en puntos, grupos, mapa de calor, zonas o cobertura.</p></div>
+      <div class="card"><h3 data-es="Búsqueda inversa" data-en="Reverse lookup">Búsqueda inversa</h3><p data-es="Desde una coordenada, los lugares y calles más cercanos." data-en="From a coordinate, the nearest places and streets.">Desde una coordenada, los lugares y calles más cercanos.</p></div>
+    </div>
+  </section>
+
+  <section class="s" id="offline">
+    <span class="k" data-es="Sin internet" data-en="Offline">Sin internet</span>
+    <h2 data-es="Una máquina, ninguna conexión." data-en="One machine, no connection.">Una máquina, ninguna conexión.</h2>
+    <p class="lead" data-es="Geocoder se entrega como imagen Docker o en una memoria USB, con su mapa, sus datos y su API dentro. Nada sale a internet. Los datos vienen de OpenStreetMap y se actualizan al reconstruir la base." data-en="Geocoder ships as a Docker image or on a USB drive, with its map, data and API inside. Nothing goes out to the internet. The data comes from OpenStreetMap and is refreshed when the database is rebuilt.">Geocoder se entrega como imagen Docker o en una memoria USB, con su mapa, sus datos y su API dentro. Nada sale a internet. Los datos vienen de OpenStreetMap y se actualizan al reconstruir la base.</p>
+  </section>
+
+  <section class="s" id="dev">
+    <span class="k" data-es="Para desarrolladores" data-en="For developers">Para desarrolladores</span>
+    <h2 data-es="Una API REST y una línea de comandos." data-en="A REST API and a command line.">Una API REST y una línea de comandos.</h2>
+    <div class="grid2">
+<pre><span class="c">$</span> geocoder resolve "L e/ 23 y 25, Vedado"</pre>
+<pre>{
+  <span class="s">"nombre"</span>: <span class="s">"l e/ 23 y 25"</span>,
+  <span class="s">"tipo"</span>: <span class="s">"calle"</span>,
+  <span class="s">"coordinates"</span>: { <span class="s">"lat"</span>: <span class="n">23.13918</span>, <span class="s">"lon"</span>: <span class="n">-82.38302</span> },
+  <span class="s">"municipio"</span>: <span class="s">"Plaza de la Revolución"</span>,
+  <span class="s">"provincia"</span>: <span class="s">"La Habana"</span>,
+  <span class="s">"precision"</span>: <span class="s">"segment_midpoint"</span>,
+  <span class="s">"radius_m"</span>: <span class="n">61.0</span>
+}</pre>
+    </div>
+  </section>
+
+  <section class="s" id="demo">
+    <span class="k" data-es="Pruébalo" data-en="Try it">Pruébalo</span>
+    <h2 data-es="¿Quieres verlo con tus direcciones?" data-en="Want to see it with your own addresses?">¿Quieres verlo con tus direcciones?</h2>
+    <p class="lead" data-es="Escríbenos y te lo enseñamos con una muestra de tus datos." data-en="Write to us and we will show it to you with a sample of your data.">Escríbenos y te lo enseñamos con una muestra de tus datos.</p>
+    <div class="cta">
+      <a class="btn p" href="mailto:hello@syalia.com?subject=Geocoder" data-es="Pide una demo: hello@syalia.com" data-en="Ask for a demo: hello@syalia.com">Pide una demo: hello@syalia.com</a>
+      <a class="btn" href="https://syalia.com/" data-es="Más de Syalia" data-en="More from Syalia">Más de Syalia</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span data-es="Hecho por Syalia en La Habana." data-en="Built by Syalia in Havana.">Hecho por Syalia en La Habana.</span>
+  <span><span data-es="Datos y mapa ©" data-en="Data and map ©">Datos y mapa ©</span> <a href="https://www.openstreetmap.org/copyright" data-es="colaboradores de OpenStreetMap, licencia ODbL" data-en="OpenStreetMap contributors, ODbL licence">colaboradores de OpenStreetMap, licencia ODbL</a></span>
+  <a href="https://syalia.com/">syalia.com</a>
+</footer>
+
+<script type="application/json" id="exdata">__EXJSON__</script>
+<script>
+const D = JSON.parse(document.getElementById("exdata").textContent);
+const $ = (id) => document.getElementById(id);
+const stored = (() => { try { return localStorage.getItem("lang"); } catch (_) { return null; } })();
+let lang = stored === "en" || stored === "es" ? stored : ((navigator.language || "").toLowerCase().startsWith("es") ? "es" : "en");
+let mode = "punto", cur = 0;
+const T = {
+  es: {prec: "precisión", rad: "radio", tramo: "punto medio del tramo", esquina: "esquina", lugar: "lugar", dist: "distancia", from: "desde", to: "hasta", lote: "60 direcciones de una hoja de cálculo", route: "Ruta por calles", file: "direcciones.xlsx"},
+  en: {prec: "precision", rad: "radius", tramo: "block midpoint", esquina: "corner", lugar: "place", dist: "distance", from: "from", to: "to", lote: "60 addresses from a spreadsheet", route: "Street route", file: "addresses.xlsx"}
+};
+function chips() {
+  const c = $("chips"); c.innerHTML = "";
+  if (mode !== "punto") return;
+  D.ex.forEach((e, i) => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = e.q; b.className = i === cur ? "on" : "";
+    b.onclick = () => { cur = i; draw(); }; c.appendChild(b);
+  });
+}
+function draw() {
+  const t = T[lang], wide = window.innerWidth > 640, showPt = mode === "punto";
+  $("route").toggleAttribute("hidden", mode !== "ruta");
+  $("lote").toggleAttribute("hidden", mode !== "lote");
+  $("seg").setAttribute("d", showPt ? D.ex[cur].line : "");
+  $("halo").setAttribute("r", showPt ? D.ex[cur].r : 0);
+  $("dot").setAttribute("r", showPt ? 5 : 0);
+  if (showPt) for (const id of ["halo", "dot"]) { $(id).setAttribute("cx", D.ex[cur].x); $(id).setAttribute("cy", D.ex[cur].y); }
+  let vb = [0, 0, 1000, 720];
+  if (showPt) {
+    vb = wide ? [D.ex[cur].x - 470, D.ex[cur].y - 250, 780, 562] : [D.ex[cur].x - 260, D.ex[cur].y - 170, 520, 374];
+    vb[0] = Math.max(0, Math.min(1000 - vb[2], vb[0])); vb[1] = Math.max(0, Math.min(720 - vb[3], vb[1]));
+  } else if (mode === "ruta") {
+    const [x1, y1, x2, y2] = D.route.bbox, h = Math.min(720, y2 - y1 + 90), w = h * 1000 / 720;
+    vb = [Math.max(0, Math.min(1000 - w, wide ? x2 + 40 - w : (x1 + x2 - w) / 2)), Math.max(0, Math.min(720 - h, (y1 + y2 - h) / 2)), w, h];
+  }
+  $("map").setAttribute("viewBox", vb.map((v) => v.toFixed(1)).join(" "));
+  const r = $("res");
+  if (mode === "punto") {
+    const e = D.ex[cur]; $("qtext").textContent = e.q;
+    r.innerHTML = `<span class="big">${e.lat}, ${e.lon}</span><span>${t.prec}</span><b>${t[e.kind] || e.kind}</b><span>${t.rad}</span><b>± ${e.rm} m</b>`;
+  } else if (mode === "ruta") {
+    $("qtext").textContent = `${D.route.from} → ${D.route.to}`;
+    r.innerHTML = `<span class="big">${t.route}</span><span>${t.from}</span><b>${D.route.from}</b><span>${t.to}</span><b>${D.route.to}</b><span>${t.dist}</span><b>${(D.route.m / 1000).toFixed(1)} km</b>`;
+  } else {
+    $("qtext").textContent = t.file;
+    r.innerHTML = `<span class="big">${t.lote}</span>`;
+  }
+  chips();
+}
+function setLang(l) {
+  lang = l; document.documentElement.lang = l; $("lang").textContent = l === "es" ? "EN" : "ES";
+  document.querySelectorAll("[data-es]").forEach((el) => { el.textContent = el.dataset[l]; });
+  try { localStorage.setItem("lang", l); } catch (_) {}
+  draw();
+}
+$("modes").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button"); if (!b) return;
+  mode = b.dataset.m; document.querySelectorAll("#modes button").forEach((x) => x.classList.toggle("on", x === b)); draw();
+});
+$("lang").addEventListener("click", () => setLang(lang === "es" ? "en" : "es"));
+window.addEventListener("resize", draw);
+setLang(lang);
+</script>
+</body>
+</html>
